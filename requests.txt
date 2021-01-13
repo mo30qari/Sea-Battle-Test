@@ -1,0 +1,44 @@
+/////////////////////////////
+
+{
+	"__Type":"JoinToRoomReq",
+	"RoomID": 1,
+	"PlayerID": 1
+}
+
+/////////////////////////////
+
+{
+    "__Type":"DiceRolledReq",
+    "Dice":2
+}
+
+/////////////////////////////
+
+{
+    "__Type":"PlayerBackReq",
+    "RoomID": 1,
+    "PlayerID": 1
+}
+
+/////////////////////////////
+
+{
+	"__Type": "PlayerMovedReq",
+	"Pawn": 1,
+	"StepCount": 5
+}
+
+/////////////////////////////
+
+{
+    "__Type":"ResignReq"
+}
+
+/////////////////////////////
+
+{
+	"__Type":"RoomDataReq",
+	"Dice":4,
+	"Turn":1
+}
