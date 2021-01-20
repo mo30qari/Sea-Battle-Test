@@ -1,4 +1,5 @@
-let WebSocketServer = require('ws').Server, wss = new WebSocketServer({ port: 8070 })
+let WebSocketServer = require('ws').Server,
+    wss = new WebSocketServer({ port: 8070 })
 let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
@@ -22,26 +23,6 @@ function Player(ws, id, roomId, num, ready, absence, deleted) {
     this.deleted = deleted
 }
 
-wss.SendDataToRoom = function broadcast(toRoomID, data, fromPlayer) {
-
-    if ((fromPlayer && !fromPlayer.deleted) || fromPlayer === null) {
-
-        wss.clients.forEach(function each(client) {
-
-            let player = PLAYERS.find(e => (e.ws === client) && (e.roomId === toRoomID))
-
-            if (player && (player !== fromPlayer || fromPlayer === null) && player.ready && !player.deleted) {
-                client.send(JSON.stringify(data))
-            }
-        })
-
-    } else {
-
-        wss.client.send("Unauthorized Request!")
-
-    }
-}
-
 wss.on('connection', function (ws, request, client) {
 
     print("Opened!")
@@ -61,16 +42,16 @@ wss.on('connection', function (ws, request, client) {
                 let player = room.players.find(e => e.id === msg.PlayerID)
 
 
-                if (player) {//The old player should not send <JoinToRoomReq>
+                if (player) { //The old player should not send <JoinToRoomReq>
 
                     //Before, The disconnected user could reconnect from here.
                     //But now the codes of that action migrated to the <PlayerBackReq>
                     ws.send("The player Already Exists!")
 
 
-                } else {//New player
+                } else { //New player
 
-                    if (room.capacity > room.players.length) {//The room is not full
+                    if (room.capacity > room.players.length) { //The room is not full
 
                         let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 1, 0, 0)
 
@@ -99,19 +80,18 @@ wss.on('connection', function (ws, request, client) {
                         }
 
 
-                        if (room.capacity === room.players.length) {//All the players joined
+                        if (room.capacity === room.players.length) { //All the players joined
 
                             wss.SendDataToRoom(room.id, {
                                 "__Type": "GameStart",
-                                "Players": [
-                                    {
-                                        "Nickname": "Ali",
-                                        "Avatar": ""
-                                    },
-                                    {
-                                        "Nickname": "Mosi",
-                                        "Avatar": ""
-                                    },
+                                "Players": [{
+                                    "Nickname": "Ali",
+                                    "Avatar": ""
+                                },
+                                {
+                                    "Nickname": "Mosi",
+                                    "Avatar": ""
+                                },
                                 ]
                             }, null)
 
@@ -122,14 +102,14 @@ wss.on('connection', function (ws, request, client) {
 
                         }
 
-                    } else {//The room is full
+                    } else { //The room is full
                         print(" The Room is Full!")
                     }
 
                 }
 
 
-            } else {//The Room doesn't exist
+            } else { //The Room doesn't exist
 
                 let room = new Room(msg.RoomID, CAPACITY, {
                     "__Type": "RoomDataReq",
@@ -161,33 +141,53 @@ wss.on('connection', function (ws, request, client) {
                 }
 
             }
-        }
+        } else if (msg.__Type === "GameStateUpdateReq") { //This is updating game state req
 
-        else if (msg.__Type === "GameStateUpdateReq") {//This is updating game state req
+            if (msg.TouchedCell === 0) { //This is not a touching cell request
 
-            if (msg.TouchedCell === 0) {//This is not a touching cell request
+                if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
 
-                if (msg.Board.length < 1 || msg.Board == undefined) {//Board array is empty, the message is about Ships...
+                    if (msg.Ships.length === 1) { //Player sent his ships positions
 
-                    if (msg.Ships.length === 1) {//Player sent his ships positions
+                        let player = PLAYERS.find(e => e.ws === ws)
+                        if (player) {
 
-                        
+                            let room = ROOMS.find(e => e.id === player.roomId)
+                            if (room) {
 
-                    } else {//Unexpected request
+                                player.ships = msg.Ships[0]
+                                let x = 0
+                                let ships = []
+                                //All the players sent their ships? If yes, send them <GameStateUpdateRes>
+                                room.players.forEach(function (p, i) {
+                                    if ("ships" in p) {
+                                        ++x
+                                        ships[i] = p.ships
+                                        if (x === 2) {
+                                            sendGameStateUpdateRes(ships, [], 0, 1, room.players, null)
+                                        }
+                                    }
+                                })
+
+                            }
+
+                        }
+
+                    } else { //Unexpected request
 
                         ws.send("1: The request is not correct!")
 
                     }
 
-                } else {//Unexpected request
+                } else { //Unexpected request
 
                     ws.send("2: The request is not correct!")
 
                 }
 
-            } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "int") {//This is a touching cell request
+            } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "int") { //This is a touching cell request
 
-                if (msg.Board.length === 2) {//The board of both player should be inserted in Board array
+                if (msg.Board.length === 2) { //The board of both player should be inserted in Board array
 
 
 
@@ -195,38 +195,7 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
-            // let player = PLAYERS.find(e => e.ws === ws)
-
-            // if (player && !player.deleted) {
-
-            //     let room = ROOMS.find(e => e.id === player.roomId)
-
-            //     if (room) {
-
-            //         player.ships = msg.Ships
-            //         let x = 0
-            //         let ships = []
-            //         //If All the players sent <SetShipsRes>? If yes send them <SetShipsRes>
-            //         room.players.forEach(function (ply, i) {
-            //             if ("ships" in ply) {
-            //                 ++x
-            //                 ships[i] = ply.ships
-            //                 if (x === 2) {
-            //                     wss.SendDataToRoom(room.id, {
-            //                         "__Type": "SetShipsRes",
-            //                         "Ships": ships
-            //                     }, null)
-            //                 }
-            //             }
-            //         })
-
-            //     }
-
-            // }
-
-        }
-
-        else if (msg.__Type === "RoomDataReq") {
+        } else if (msg.__Type === "RoomDataReq") {
 
             clearTimeout(timer)
 
@@ -249,9 +218,7 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
-        }
-
-        else if (msg.__Type === "PlayerBackReq") {
+        } else if (msg.__Type === "PlayerBackReq") {
 
             let player = PLAYERS.find(e => e.ws === ws)
 
@@ -268,8 +235,7 @@ wss.on('connection', function (ws, request, client) {
                         ws.send(JSON.stringify(room.data))
 
                     }
-                }
-                else {
+                } else {
 
                     let room = ROOMS.find(e => e.id === msg.RoomID)
 
@@ -315,9 +281,7 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
-        }
-
-        else if (msg.__Type === "PlayerMovedReq") {
+        } else if (msg.__Type === "PlayerMovedReq") {
 
             let player = PLAYERS.find(e => e.ws === ws)
 
@@ -338,9 +302,7 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
-        }
-
-        else if (msg.__Type === "ResignReq") {
+        } else if (msg.__Type === "ResignReq") {
 
             let player = PLAYERS.find(e => e.ws === ws)
 
@@ -398,6 +360,26 @@ wss.on('connection', function (ws, request, client) {
     })
 
 })
+
+wss.SendDataToRoom = function broadcast(toRoomID, data, fromPlayer) {
+
+    if ((fromPlayer && !fromPlayer.deleted) || fromPlayer === null) {
+
+        wss.clients.forEach(function each(client) {
+
+            let player = PLAYERS.find(e => (e.ws === client) && (e.roomId === toRoomID))
+
+            if (player && (player !== fromPlayer || fromPlayer === null) && player.ready && !player.deleted) {
+                client.send(JSON.stringify(data))
+            }
+        })
+
+    } else {
+
+        wss.client.send("Unauthorized Request!")
+
+    }
+}
 
 function print(message) {
 
@@ -476,7 +458,20 @@ function startTimer(player, room) {
 
 }
 
+function sendGameStateUpdateRes(ships, board, touchedCell, turn, players, sender) {//sender = null => send to all
 
+    players.forEach(function (player) {
 
+        if (player != sender) {
+            player.ws.send(JSON.stringify({
+                __Type: "GameStateUpdateRes",
+                Ships: ships,
+                Borad: board,
+                TouchedCell: touchedCell,
+                Turn: turn
+            }))
+        }
 
+    })
 
+}
