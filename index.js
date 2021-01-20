@@ -60,17 +60,17 @@ wss.on('connection', function (ws, request, client) {
 
                 let player = room.players.find(e => e.id === msg.PlayerID)
 
-                //The old player should not send <JoinToRoomReq>
-                if (player) {
+
+                if (player) {//The old player should not send <JoinToRoomReq>
 
                     //Before, The disconnected user could reconnect from here.
                     //But now the codes of that action migrated to the <PlayerBackReq>
                     ws.send("The player Already Exists!")
 
-                    //New player
-                } else {
 
-                    if (room.capacity > room.players.length) {
+                } else {//New player
+
+                    if (room.capacity > room.players.length) {//The room is not full
 
                         let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 1, 0, 0)
 
@@ -98,18 +98,18 @@ wss.on('connection', function (ws, request, client) {
 
                         }
 
-                        //All the players joined
-                        if (room.capacity === room.players.length) {
+
+                        if (room.capacity === room.players.length) {//All the players joined
 
                             wss.SendDataToRoom(room.id, {
                                 "__Type": "GameStart",
                                 "Players": [
                                     {
-                                        "Name": "Ali",
+                                        "Nickname": "Ali",
                                         "Avatar": ""
                                     },
                                     {
-                                        "Name": "Mosi",
+                                        "Nickname": "Mosi",
                                         "Avatar": ""
                                     },
                                 ]
@@ -121,15 +121,15 @@ wss.on('connection', function (ws, request, client) {
                             startTimer(turnedPlayer, room)
 
                         }
-                        //The room is full
-                    } else {
+
+                    } else {//The room is full
                         print(" The Room is Full!")
                     }
 
                 }
 
-                //If the Room doesn't exist
-            } else {
+
+            } else {//The Room doesn't exist
 
                 let room = new Room(msg.RoomID, CAPACITY, {
                     "__Type": "RoomDataReq",
@@ -139,7 +139,7 @@ wss.on('connection', function (ws, request, client) {
 
                 ROOMS.push(room)
 
-                //The player is the room creator
+                //The player is the room's creator
                 let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 1, 0, 0)
                 room.players.push(player)
                 PLAYERS.push(player)
@@ -152,7 +152,7 @@ wss.on('connection', function (ws, request, client) {
                         },
                         "PlayerNumber": player.num,
                         "Player": {
-                            "Name": "Ali",
+                            "Nickname": "Ali",
                             "Avatar": 254
                         }
                     }))
@@ -163,36 +163,66 @@ wss.on('connection', function (ws, request, client) {
             }
         }
 
-        else if (msg.__Type === "SetShipsReq") {
+        else if (msg.__Type === "GameStateUpdateReq") {//This is updating game state req
 
-            let player = PLAYERS.find(e => e.ws === ws)
+            if (msg.TouchedCell === 0) {//This is not a touching cell request
 
-            if (player && !player.deleted) {
+                if (msg.Board.length < 1 || msg.Board == undefined) {//Board array is empty, the message is about Ships...
 
-                let room = ROOMS.find(e => e.id === player.roomId)
+                    if (msg.Ships.length === 1) {//Player sent his ships positions
 
-                if (room) {
+                        
 
-                    player.ships = msg.Ships
-                    let x = 0
-                    let ships = []
-                    //If All the players sent <SetShipsRes>? If yes send them <SetShipsRes>
-                    room.players.forEach(function (ply, i) {
-                        if ("ships" in ply) {
-                            ++x
-                            ships[i] = ply.ships
-                            if (x === 2) {
-                                wss.SendDataToRoom(room.id, {
-                                    "__Type": "SetShipsRes",
-                                    "Ships": ships
-                                }, null)
-                            }
-                        }
-                    })
+                    } else {//Unexpected request
+
+                        ws.send("1: The request is not correct!")
+
+                    }
+
+                } else {//Unexpected request
+
+                    ws.send("2: The request is not correct!")
+
+                }
+
+            } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "int") {//This is a touching cell request
+
+                if (msg.Board.length === 2) {//The board of both player should be inserted in Board array
+
+
 
                 }
 
             }
+
+            // let player = PLAYERS.find(e => e.ws === ws)
+
+            // if (player && !player.deleted) {
+
+            //     let room = ROOMS.find(e => e.id === player.roomId)
+
+            //     if (room) {
+
+            //         player.ships = msg.Ships
+            //         let x = 0
+            //         let ships = []
+            //         //If All the players sent <SetShipsRes>? If yes send them <SetShipsRes>
+            //         room.players.forEach(function (ply, i) {
+            //             if ("ships" in ply) {
+            //                 ++x
+            //                 ships[i] = ply.ships
+            //                 if (x === 2) {
+            //                     wss.SendDataToRoom(room.id, {
+            //                         "__Type": "SetShipsRes",
+            //                         "Ships": ships
+            //                     }, null)
+            //                 }
+            //             }
+            //         })
+
+            //     }
+
+            // }
 
         }
 
