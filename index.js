@@ -103,7 +103,9 @@ wss.on('connection', function (ws, request, client) {
                         }
 
                     } else { //The room is full
+                        
                         print(" The Room is Full!")
+                        
                     }
 
                 }
@@ -112,9 +114,11 @@ wss.on('connection', function (ws, request, client) {
             } else { //The Room doesn't exist
 
                 let room = new Room(msg.RoomID, CAPACITY, {
-                    "__Type": "RoomDataReq",
+                    "__Type": "RoomDataRes",
+                    "Ships": [],
+                    "Board": [],
                     "Turn": 1,
-                    "GameState": null
+                    "ElapsedTime": 0.00
                 })
 
                 ROOMS.push(room)
@@ -145,26 +149,29 @@ wss.on('connection', function (ws, request, client) {
 
             let player = PLAYERS.find(e => e.ws === ws)
             if (player) {
-                
+
                 let room = ROOMS.find(e => e.id === player.roomId)
                 if (room) {
 
                     if (msg.TouchedCell === 0) { //This is not a touching cell request
-                        
+
                         if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
 
                             if (msg.Ships.length === 1) { //Player sent his ships positions
-                                
+
                                 player.ships = msg.Ships[0]
                                 let x = 0
                                 let ships = []
-                                //All the players sent their ships? If yes, send them <GameStateUpdateRes>
+
                                 room.players.forEach(function (p, i) {
                                     if ("ships" in p) {
                                         ++x
                                         ships[i] = p.ships
-                                        if (x === 2) {
+                                        if (x === 2) { //All the players sent their ships? If yes, send them <GameStateUpdateRes> and start timer
                                             sendGameStateUpdateRes(ships, [], 0, 1, room.players, null)
+                                            //Start calculate the player absence #1
+                                            let turnedPlayer = room.players.find(e => e.ws != ws) // Select opponent
+                                            startTimer(turnedPlayer, room)
                                         }
                                     }
                                 })
@@ -178,51 +185,33 @@ wss.on('connection', function (ws, request, client) {
 
                         } else { //Unexpected request
 
-                            ws.send("2: The request is not correct!");
+                            ws.send("2: The request is not correct!")
 
                         }
 
                     } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "number") { //This is a touching cell request
-                        
+
                         if (msg.Board.length === 2) { //Updating board message. A response will be sent to the opponent that notifies him about touching cells.
 
                             sendGameStateUpdateRes(msg.Ships, msg.Board, msg.TouchedCell, msg.Turn, room.players, player)
-                            
+                            updateRoomData(room, msg)
+
+                            //Start calculate the player absence #2
+                            let turnedPlayer = room.players.find(e => e.ws != ws) //Select opponent
+                            startTimer(turnedPlayer, room)
+
                         } else {
-                            
+
                             ws.send("3: The request is not correct!")
-                            
+
                         }
 
                     } else {
-                        
+
                         ws.send("4: The request is not correct!")
-                        
+
                     }
                 }
-            }
-
-        } else if (msg.__Type === "RoomDataReq") {
-
-            clearTimeout(timer)
-
-            let player = PLAYERS.find(e => e.ws === ws)
-
-            if (player && !player.deleted) {
-
-                let room = ROOMS.find(e => e.id === player.roomId)
-
-                if (room) {
-
-                    room.data = msg
-
-                    let turnedPlayer = room.players.find(e => e.num === parseInt(msg.Turn))
-
-                    //Calculate Player Absence
-                    startTimer(turnedPlayer, room)
-
-                }
-
             }
 
         } else if (msg.__Type === "PlayerBackReq") {
@@ -422,6 +411,9 @@ function nextTurn(players, turn) {
 }
 
 function startTimer(player, room) {
+    
+    clearTimeout(timer)
+    
     if (player && !player.deleted) {
 
         startTime = (new Date()).getTime()
@@ -435,8 +427,6 @@ function startTimer(player, room) {
 
             wss.SendDataToRoom(player.roomId, {
                 "__Type": "TurnSkipped",
-                "GameState": room.data.GameState,
-                "Dice": room.data.Dice,
                 "Turn": newTurn
             }, null)
 
@@ -466,11 +456,11 @@ function startTimer(player, room) {
 }
 
 function sendGameStateUpdateRes(ships, board, touchedCell, turn, players, sender) {//sender = null => send to all
-    
+
     players.forEach(function (player) {
-        
+
         if (player != sender) {
-            
+
             player.ws.send(JSON.stringify({
                 __Type: "GameStateUpdateRes",
                 Ships: ships,
@@ -481,5 +471,23 @@ function sendGameStateUpdateRes(ships, board, touchedCell, turn, players, sender
         }
 
     })
+
+}
+
+function updateRoomData(room, data) {//Updating room data with latest data sent from players
+
+    if (room) {
+
+        room.data = {
+            Ships: data.Ships,
+            Board: data.Board,
+            Turn: data.Turn
+        }
+
+        return true
+
+    }
+
+    return false
 
 }
