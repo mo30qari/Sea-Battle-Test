@@ -142,18 +142,18 @@ wss.on('connection', function (ws, request, client) {
 
             }
         } else if (msg.__Type === "GameStateUpdateReq") { //This is updating game state req
+            
+            let player = PLAYERS.find(e => e.ws === ws)
+            if (player) {
 
-            if (msg.TouchedCell === 0) { //This is not a touching cell request
+                let room = ROOMS.find(e => e.id === player.roomId)
+                if (room) {
 
-                if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
+                    if (msg.TouchedCell === 0) { //This is not a touching cell request
 
-                    if (msg.Ships.length === 1) { //Player sent his ships positions
+                        if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
 
-                        let player = PLAYERS.find(e => e.ws === ws)
-                        if (player) {
-
-                            let room = ROOMS.find(e => e.id === player.roomId)
-                            if (room) {
+                            if (msg.Ships.length === 1) { //Player sent his ships positions
 
                                 player.ships = msg.Ships[0]
                                 let x = 0
@@ -169,34 +169,33 @@ wss.on('connection', function (ws, request, client) {
                                     }
                                 })
 
+
+                            } else { //Unexpected request
+
+                                ws.send("1: The request is not correct!")
+
                             }
+
+                        } else { //Unexpected request
+
+                            ws.send("2: The request is not correct!")
 
                         }
 
-                    } else { //Unexpected request
+                    } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "number") { //This is a touching cell request
+                        
+                        if (msg.Board.length === 2) { //Updating board message
 
-                        ws.send("1: The request is not correct!")
+                            sendGameStateUpdateRes(msg.Ships, msg.Board, msg.TouchedCell, msg.Turn, room.players, player)
+                            
+                        } else {
+                            
+                            ws.send("3: The request is not correct!")
+                            
+                        }
 
                     }
-
-                } else { //Unexpected request
-
-                    ws.send("2: The request is not correct!")
-
                 }
-
-            } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "int") { //This is a touching cell request
-
-                if (msg.Board.length === 2) { //Updating board message
-
-                    console.log("Here I am!")
-
-                } else {
-                    
-                    ws.send("3: The request is not correct!")
-                    
-                }
-
             }
 
         } else if (msg.__Type === "RoomDataReq") {
