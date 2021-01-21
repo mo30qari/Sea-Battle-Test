@@ -142,19 +142,19 @@ wss.on('connection', function (ws, request, client) {
 
             }
         } else if (msg.__Type === "GameStateUpdateReq") { //This is updating game state req
-            
+
             let player = PLAYERS.find(e => e.ws === ws)
             if (player) {
-
+                
                 let room = ROOMS.find(e => e.id === player.roomId)
                 if (room) {
 
                     if (msg.TouchedCell === 0) { //This is not a touching cell request
-
+                        
                         if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
 
                             if (msg.Ships.length === 1) { //Player sent his ships positions
-
+                                
                                 player.ships = msg.Ships[0]
                                 let x = 0
                                 let ships = []
@@ -178,7 +178,7 @@ wss.on('connection', function (ws, request, client) {
 
                         } else { //Unexpected request
 
-                            ws.send("2: The request is not correct!")
+                            ws.send("2: The request is not correct!");
 
                         }
 
@@ -194,6 +194,10 @@ wss.on('connection', function (ws, request, client) {
                             
                         }
 
+                    } else {
+                        
+                        ws.send("4: The request is not correct!")
+                        
                     }
                 }
             }
@@ -462,10 +466,11 @@ function startTimer(player, room) {
 }
 
 function sendGameStateUpdateRes(ships, board, touchedCell, turn, players, sender) {//sender = null => send to all
-
+    
     players.forEach(function (player) {
-
+        
         if (player != sender) {
+            
             player.ws.send(JSON.stringify({
                 __Type: "GameStateUpdateRes",
                 Ships: ships,
