@@ -187,10 +187,14 @@ wss.on('connection', function (ws, request, client) {
 
             } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "int") { //This is a touching cell request
 
-                if (msg.Board.length === 2) { //The board of both player should be inserted in Board array
+                if (msg.Board.length === 2) { //Updating board message
 
+                    console.log("Here I am!")
 
-
+                } else {
+                    
+                    ws.send("3: The request is not correct!")
+                    
                 }
 
             }
@@ -466,7 +470,7 @@ function sendGameStateUpdateRes(ships, board, touchedCell, turn, players, sender
             player.ws.send(JSON.stringify({
                 __Type: "GameStateUpdateRes",
                 Ships: ships,
-                Borad: board,
+                Board: board,
                 TouchedCell: touchedCell,
                 Turn: turn
             }))
