@@ -184,7 +184,7 @@ wss.on('connection', function (ws, request, client) {
 
                     } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "number") { //This is a touching cell request
                         
-                        if (msg.Board.length === 2) { //Updating board message
+                        if (msg.Board.length === 2) { //Updating board message. A response will be sent to the opponent that notifies him about touching cells.
 
                             sendGameStateUpdateRes(msg.Ships, msg.Board, msg.TouchedCell, msg.Turn, room.players, player)
                             
