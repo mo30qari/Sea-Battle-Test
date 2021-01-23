@@ -3,8 +3,9 @@ let WebSocketServer = require('ws').Server,
 let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
-let timeout = 15000
-let timer, startTime
+let timeout = 8000
+let setShipsTimeout = 15000
+let timer, startTime, setShipsTimer
 
 function Room(id, capacity, data) {
     this.id = id
@@ -18,9 +19,10 @@ function Player(ws, id, roomId, num, ready, absence, deleted) {
     this.id = id
     this.roomId = roomId
     this.num = num
-    this.ready = ready
-    this.absence = absence
-    this.deleted = deleted
+    this.ready = 0
+    this.absence = 0
+    this.deleted = 0
+    this.setShips = 0
 }
 
 wss.on('connection', function (ws, request, client) {
@@ -53,7 +55,7 @@ wss.on('connection', function (ws, request, client) {
 
                     if (room.capacity > room.players.length) { //The room is not full
 
-                        let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 0, 0, 0)
+                        let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1)
 
                         room.players.push(player)
 
@@ -81,11 +83,11 @@ wss.on('connection', function (ws, request, client) {
 
 
                         if (room.capacity === room.players.length) { //All the players joined
-                            
-                            room.players.forEach(function(ply){
-                                
+
+                            room.players.forEach(function (ply) {
+
                                 ply.ready = 1
-                                
+
                             })
 
                             wss.SendDataToRoom(room.id, {
@@ -101,17 +103,15 @@ wss.on('connection', function (ws, request, client) {
                                 ]
                             }, null)
 
-                            //Choose the player with first turn
-                            let turnedPlayer = room.players.find(e => e.num === 1)
                             //And startTimer for the player at the beginning of the game
-                            startTimer(turnedPlayer, room)
+                            startSetShipsTimer(room)
 
                         }
 
                     } else { //The room is full
-                        
+
                         print("The Room is Full!")
-                        
+
                     }
 
                 }
@@ -130,7 +130,7 @@ wss.on('connection', function (ws, request, client) {
                 ROOMS.push(room)
 
                 //The player is the room's creator
-                let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 0, 0, 0)
+                let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1)
                 room.players.push(player)
                 PLAYERS.push(player)
 
@@ -164,6 +164,8 @@ wss.on('connection', function (ws, request, client) {
                         if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
 
                             if (msg.Ships.length === 1) { //Player sent his ships positions
+                                
+                                player.setShips = 1 //Tag player that he set his ships (setShipsTimer)
 
                                 player.ships = msg.Ships[0]
                                 let x = 0
@@ -305,23 +307,23 @@ wss.on('connection', function (ws, request, client) {
             }
 
         } else if (msg.__Type === "EndGameReq") {
-            
+
             let player = PLAYERS.find(e => e.ws === ws)
-            
+
             if (player && !player.deleted && player.ready) {
-                
+
                 let room = ROOMS.find(e => e.id === player.roomId)
-                    
+
                 if (room) {
-                    
+
                     room = null
                     console.log("The room is closed!")
-                    
+
                 }
-                
+
             }
-                       
-            
+
+
         }
 
     })
@@ -414,7 +416,7 @@ function nextTurn(players, turn) {
 }
 
 function startTimer(player, room) {
-    
+
     if (player && !player.deleted) {
 
         clearTimeout(timer)
@@ -454,6 +456,32 @@ function startTimer(player, room) {
 
         }, timeout, player)
     }
+
+}
+
+function startSetShipsTimer(room) {
+
+    clearTimeout(setShipsTimer)
+    
+    setShipsTimer = setTimeout(function () {
+        
+        room.players.forEach(function(player){
+            
+            if(!player.setShips){
+            
+                let opponent = room.players.find(e => e.ws != player.ws)
+                player.deleted = 1
+                player.ready = 0
+                
+                opponent.ws.send(JSON.stringify({
+                    __Type: "ResignUpdate"
+                }))
+                
+            }
+            
+        })
+
+    }, setShipsTimeout)
 
 }
 
