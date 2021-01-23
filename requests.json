@@ -41,20 +41,6 @@
 	,
 
 	{
-		"__Type": "PlayerMovedReq",
-		"Pawn": 1,
-		"StepCount": 5
-	}
-	,
-
-	{
 		"__Type": "ResignReq"
-	}
-	,
-
-	{
-		"__Type": "RoomDataReq",
-		"Dice": 4,
-		"Turn": 1
 	}
 ]

@@ -3,7 +3,7 @@ let WebSocketServer = require('ws').Server,
 let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
-let timeout = 8000000
+let timeout = 15000
 let timer, startTime
 
 function Room(id, capacity, data) {
@@ -53,7 +53,7 @@ wss.on('connection', function (ws, request, client) {
 
                     if (room.capacity > room.players.length) { //The room is not full
 
-                        let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 1, 0, 0)
+                        let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 0, 0, 0)
 
                         room.players.push(player)
 
@@ -81,6 +81,12 @@ wss.on('connection', function (ws, request, client) {
 
 
                         if (room.capacity === room.players.length) { //All the players joined
+                            
+                            room.players.forEach(function(ply){
+                                
+                                ply.ready = 1
+                                
+                            })
 
                             wss.SendDataToRoom(room.id, {
                                 "__Type": "GameStart",
@@ -104,7 +110,7 @@ wss.on('connection', function (ws, request, client) {
 
                     } else { //The room is full
                         
-                        print(" The Room is Full!")
+                        print("The Room is Full!")
                         
                     }
 
@@ -124,7 +130,7 @@ wss.on('connection', function (ws, request, client) {
                 ROOMS.push(room)
 
                 //The player is the room's creator
-                let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 1, 0, 0)
+                let player = new Player(ws, msg.PlayerID, msg.RoomID, room.players.length + 1, 0, 0, 0)
                 room.players.push(player)
                 PLAYERS.push(player)
 
@@ -148,7 +154,7 @@ wss.on('connection', function (ws, request, client) {
         } else if (msg.__Type === "GameStateUpdateReq") { //This is updating game state req
 
             let player = PLAYERS.find(e => e.ws === ws)
-            if (player) {
+            if (player && player.ready) {
 
                 let room = ROOMS.find(e => e.id === player.roomId)
                 if (room) {
@@ -277,32 +283,11 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
-        } else if (msg.__Type === "PlayerMovedReq") {
-
-            let player = PLAYERS.find(e => e.ws === ws)
-
-            if (player && !player.deleted) {
-
-                let room = ROOMS.find(e => e.id === player.roomId)
-
-                if (room) {
-
-                    wss.SendDataToRoom(player.roomId, {
-                        "__Type": "PlayerMovedRes",
-                        "PlayerNumber": player.num,
-                        "Pawn": msg.Pawn,
-                        "StepCount": msg.StepCount
-                    }, player)
-
-                }
-
-            }
-
         } else if (msg.__Type === "ResignReq") {
 
             let player = PLAYERS.find(e => e.ws === ws)
 
-            if (player && !player.deleted) {
+            if (player && !player.deleted && player.ready) {
 
                 let room = ROOMS.find(e => e.id === player.roomId)
 
@@ -319,6 +304,24 @@ wss.on('connection', function (ws, request, client) {
 
             }
 
+        } else if (msg.__Type === "EndGameReq") {
+            
+            let player = PLAYERS.find(e => e.ws === ws)
+            
+            if (player && !player.deleted && player.ready) {
+                
+                let room = ROOMS.find(e => e.id === player.roomId)
+                    
+                if (room) {
+                    
+                    room = null
+                    console.log("The room is closed!")
+                    
+                }
+                
+            }
+                       
+            
         }
 
     })
@@ -412,10 +415,9 @@ function nextTurn(players, turn) {
 
 function startTimer(player, room) {
     
-    clearTimeout(timer)
-    
     if (player && !player.deleted) {
 
+        clearTimeout(timer)
         startTime = (new Date()).getTime()
 
         timer = setTimeout(function () {
