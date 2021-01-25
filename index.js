@@ -162,7 +162,7 @@ wss.on('connection', function (ws, request, client) {
                     
                     player.setShips = 1 //Tag player that he set his ships (setShipsTimer)
 
-                    player.ships = msg.Ships[0]
+                    player.ships = msg.Ships
                     let x = 0
                     let ships = []
 
