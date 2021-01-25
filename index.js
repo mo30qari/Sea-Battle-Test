@@ -3,8 +3,8 @@ let WebSocketServer = require('ws').Server,
 let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
-let timeout = 1000
-let setShipsTimeout = 15000
+let timeout = 10000
+let setShipsTimeout = 1500000
 let timer, startTime, setShipsTimer
 
 function Room(id, capacity, data) {
@@ -171,7 +171,14 @@ wss.on('connection', function (ws, request, client) {
                             ++x
                             ships[i] = p.ships
                             if (x === 2) { //All the players sent their ships? If yes, send them <GameStateUpdateRes> and start timer
-                                sendGameStateUpdateRes(ships, [], 0, 1, room.players, null)
+                                room.players.forEach(function (player) {
+                            
+                                    player.ws.send(JSON.stringify({
+                                        __Type: "SetShipsRes",
+                                        Ships: ships
+                                    }))
+                            
+                                })
                                 //Start calculate the player absence #1
                                 let turnedPlayer = room.players.find(e => e.ws != ws) // Select opponent
                                 startTimer(turnedPlayer, room)
