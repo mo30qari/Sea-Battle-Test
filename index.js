@@ -4,7 +4,7 @@ let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
 let timeout = 8000
-let setShipsTimeout = 15000
+let setShipsTimeout = 15000000
 let timer, startTime, setShipsTimer
 
 function Room(id, capacity, data) {
@@ -151,6 +151,37 @@ wss.on('connection', function (ws, request, client) {
                 }
 
             }
+        
+        } else if (msg.__Type === "SetShipsReq"){
+            
+            let player = PLAYERS.find(e => e.ws === ws)
+            if (player && player.ready) {
+
+                let room = ROOMS.find(e => e.id === player.roomId)
+                if (room) {
+                    
+                    player.setShips = 1 //Tag player that he set his ships (setShipsTimer)
+
+                    player.ships = msg.Ships[0]
+                    let x = 0
+                    let ships = []
+
+                    room.players.forEach(function (p, i) {
+                        if ("ships" in p) {
+                            ++x
+                            ships[i] = p.ships
+                            if (x === 2) { //All the players sent their ships? If yes, send them <GameStateUpdateRes> and start timer
+                                sendGameStateUpdateRes(ships, [], 0, 1, room.players, null)
+                                //Start calculate the player absence #1
+                                let turnedPlayer = room.players.find(e => e.ws != ws) // Select opponent
+                                startTimer(turnedPlayer, room)
+                            }
+                        }
+                    })
+                }
+                
+            }
+        
         } else if (msg.__Type === "GameStateUpdateReq") { //This is updating game state req
 
             let player = PLAYERS.find(e => e.ws === ws)
@@ -159,45 +190,7 @@ wss.on('connection', function (ws, request, client) {
                 let room = ROOMS.find(e => e.id === player.roomId)
                 if (room) {
 
-                    if (msg.TouchedCell === 0) { //This is not a touching cell request
-
-                        if (msg.Board.length < 1 || msg.Board == undefined) { //Board array is empty, the message is about Ships...
-
-                            if (msg.Ships.length === 1) { //Player sent his ships positions
-                                
-                                player.setShips = 1 //Tag player that he set his ships (setShipsTimer)
-
-                                player.ships = msg.Ships[0]
-                                let x = 0
-                                let ships = []
-
-                                room.players.forEach(function (p, i) {
-                                    if ("ships" in p) {
-                                        ++x
-                                        ships[i] = p.ships
-                                        if (x === 2) { //All the players sent their ships? If yes, send them <GameStateUpdateRes> and start timer
-                                            sendGameStateUpdateRes(ships, [], 0, 1, room.players, null)
-                                            //Start calculate the player absence #1
-                                            let turnedPlayer = room.players.find(e => e.ws != ws) // Select opponent
-                                            startTimer(turnedPlayer, room)
-                                        }
-                                    }
-                                })
-
-
-                            } else { //Unexpected request
-
-                                ws.send("1: The request is not correct!")
-
-                            }
-
-                        } else { //Unexpected request
-
-                            ws.send("2: The request is not correct!")
-
-                        }
-
-                    } else if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "number") { //This is a touching cell request
+                    if (msg.TouchedCell > 0 && typeof msg.TouchedCell === "number") { //This is a touching cell request
 
                         if (msg.Board.length === 2) { //Updating board message. A response will be sent to the opponent that notifies him about touching cells.
 
