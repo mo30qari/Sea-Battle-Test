@@ -3,8 +3,8 @@ let WebSocketServer = require('ws').Server,
 let PLAYERS = []
 let ROOMS = []
 let CAPACITY = 2
-let timeout = 8000
-let setShipsTimeout = 15000000
+let timeout = 1000
+let setShipsTimeout = 15000
 let timer, startTime, setShipsTimer
 
 function Room(id, capacity, data) {
